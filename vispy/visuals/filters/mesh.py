@@ -10,7 +10,7 @@ from vispy.visuals.filters import Filter
 class TextureFilter(Filter):
     """Filter to apply a texture to a mesh."""
 
-    def __init__(self, texture, texcoords, enabled=True):
+    def __init__(self, texture, texcoords, enabled=True, blending_factor=1.0):
         """Apply a texture on a mesh.
 
         Parameters
@@ -21,6 +21,8 @@ class TextureFilter(Filter):
             The texture coordinates.
         enabled : bool
             Whether the display of the texture is enabled.
+        blending_factor: float
+            The blending ratio of the texture with the existing color.
         """
         vfunc = Function("""
             void pass_coords() {
@@ -30,7 +32,9 @@ class TextureFilter(Filter):
         ffunc = Function("""
             void apply_texture() {
                 if ($enabled == 1) {
-                    gl_FragColor *= texture2D($u_texture, $texcoords);
+                    gl_FragColor = mix(gl_FragColor,
+                                       texture2D($u_texture, $texcoords),
+                                       $blending_factor);
                 }
             }
         """)
@@ -46,6 +50,7 @@ class TextureFilter(Filter):
         self.enabled = enabled
         self.texture = texture
         self.texcoords = texcoords
+        self.blending_factor = blending_factor
 
     @property
     def enabled(self):
@@ -56,6 +61,23 @@ class TextureFilter(Filter):
     def enabled(self, enabled):
         self._enabled = enabled
         self.fshader['enabled'] = 1 if enabled else 0
+
+    @property
+    def blending_factor(self):
+        """The blending ratio of the texture of the existing color.
+
+        In range [0.0, 1.0].
+        Examples:
+            1.0 = for opaque texture (default).
+            0.5 = for 50% texture, 50% mesh color.
+            0.0 = texture not visible, only mesh color.
+        """
+        return self._blending_factor
+
+    @blending_factor.setter
+    def blending_factor(self, blending_factor):
+        self._blending_factor = blending_factor
+        self.fshader['blending_factor'] = blending_factor
 
     @property
     def texture(self):
